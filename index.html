@@ -23,7 +23,6 @@ button { width:100%; padding:12px; margin-top:8px; border:none; border-radius:12
 .modal { position:fixed; bottom:-100%; left:0; right:0; background:#1e293b; padding:20px; border-top-left-radius:20px; border-top-right-radius:20px; transition:0.3s; }
 .modal.open { bottom:0; }
 .modal a { display:block; padding:10px 0; color:#38bdf8; text-decoration:none; }
-canvas { width:100%; }
 .map { position:relative; }
 .map .bg { height:200px; background:#0ea5e9; border-radius:12px; position:relative; }
 .arrow { position:absolute; font-size:24px; }
@@ -45,11 +44,16 @@ canvas { width:100%; }
   <div class="small" id="bestTime"></div>
 </div>
 
-<!-- Safe map/visual with arrows (no external image) -->
+<!-- Direction panel -->
 <div class="card map">
   <div class="bg">
-    <div id="windArrow" class="arrow wind">⬆️</div>
-    <div id="waveArrow" class="arrow wave">⬆️</div>
+    <div style="position:absolute; top:5px; left:50%; transform:translateX(-50%); font-size:12px;">N</div>
+    <div style="position:absolute; bottom:5px; left:50%; transform:translateX(-50%); font-size:12px;">S</div>
+    <div style="position:absolute; left:5px; top:50%; transform:translateY(-50%); font-size:12px;">W</div>
+    <div style="position:absolute; right:5px; top:50%; transform:translateY(-50%); font-size:12px;">E</div>
+    <div style="position:absolute; bottom:10px; left:10px; font-size:12px;">🏖 Beach faces SW</div>
+    <div id="windArrow" class="arrow wind">💨</div>
+    <div id="waveArrow" class="arrow wave">🌊</div>
   </div>
 </div>
 
@@ -64,8 +68,8 @@ canvas { width:100%; }
 </div>
 
 <div class="card">
-  <strong>📅 5 Day Forecast</strong>
-  <div id="forecast"></div>
+  <strong>📅 Forecast</strong>
+  <div id="forecast" style="display:flex; gap:10px; overflow-x:auto; padding-top:10px;"></div>
 </div>
 
 </div>
@@ -89,7 +93,7 @@ canvas { width:100%; }
 <script>
 async function loadData(){
   try {
-    const res = await fetch('https://api.open-meteo.com/v1/forecast?latitude=52.823&longitude=-4.505&hourly=temperature_2m,wind_speed_10m,wind_direction_10m,weathercode&current=temperature_2m,wind_speed_10m,wind_direction_10m,weathercode');
+    const res = await fetch('https://api.open-meteo.com/v1/forecast?latitude=52.823&longitude=-4.505&hourly=temperature_2m,wind_speed_10m,wind_direction_10m,weathercode&daily=weathercode,temperature_2m_max,temperature_2m_min&current=temperature_2m,wind_speed_10m,wind_direction_10m,weathercode');
     const data = await res.json();
 
     const temp = data.current.temperature_2m;
@@ -97,7 +101,6 @@ async function loadData(){
     const windKnots = windKmh * 0.539957;
     const windDir = data.current.wind_direction_10m || 0;
 
-    // Map weather codes to icons
     const weatherMap = {
       0:"☀️ Clear",
       1:"🌤 Partly",
@@ -107,44 +110,47 @@ async function loadData(){
       80:"🌦 Showers"
     };
 
-    // Rotate arrows safely
-    const windEl = document.getElementById('windArrow');
-    const waveEl = document.getElementById('waveArrow');
-    if (windEl) windEl.style.transform = `rotate(${windDir}deg)`;
-    if (waveEl) waveEl.style.transform = `rotate(${windDir}deg)`; // using wind as proxy
+    document.getElementById('windArrow').style.transform = `rotate(${windDir}deg)`;
+    document.getElementById('waveArrow').style.transform = `rotate(${windDir}deg)`;
 
-    // Display
     document.getElementById('temp').innerText = temp + '°C';
     document.getElementById('wind').innerText = windKnots.toFixed(1);
     document.getElementById('weather').innerText = weatherMap[data.current.weathercode] || '☁️';
     document.getElementById('waves').innerText = (windKmh/18).toFixed(1) + ' m (est)';
 
-    // Traffic light
     let status = document.getElementById('status');
     if(windKnots < 8){ status.innerText = '🟢 Good'; status.className='traffic good'; }
     else if(windKnots < 15){ status.innerText = '🟡 OK'; status.className='traffic ok'; }
     else { status.innerText = '🔴 Poor'; status.className='traffic bad'; }
 
-    // Simple best time (calmest hour ahead)
     const speeds = data.hourly.wind_speed_10m.slice(0,24);
     const idx = speeds.indexOf(Math.min(...speeds));
     const hour = data.hourly.time[idx].split('T')[1].slice(0,5);
     document.getElementById('bestTime').innerText = '🕒 Best: around ' + hour;
 
-    // 5-day forecast
-    if (data.daily){
-      let forecastHTML = '';
-      for(let i=0;i<Math.min(5, data.daily.time.length);i++){
-        forecastHTML += `<div class="row">
-          <div>${data.daily.time[i].slice(5)}</div>
-          <div>${weatherMap[data.daily.weathercode[i]] || ''}</div>
-          <div>${data.daily.temperature_2m_max[i]}° / ${data.daily.temperature_2m_min[i]}°</div>
-        </div>`;
-      }
-      document.getElementById('forecast').innerHTML = forecastHTML;
-    }
+    // Forecast cards
+    let forecastHTML = '';
+    for(let i=0;i<5;i++){
+      const date = new Date(data.daily.time[i]);
+      const day = date.toLocaleDateString('en-GB', { weekday:'short' });
 
-    // Tide chart (2 cycles per 24h)
+      forecastHTML += `
+      <div style="min-width:70px;background:#334155;border-radius:12px;padding:10px;text-align:center;flex-shrink:0;">
+        <div style="font-size:12px; opacity:0.8;">${day}</div>
+        <div style="font-size:20px; margin:6px 0;">
+          ${weatherMap[data.daily.weathercode[i]] || '☁️'}
+        </div>
+        <div style="font-size:14px; font-weight:bold;">
+          ${data.daily.temperature_2m_max[i]}°
+          <div style="font-size:11px; opacity:0.6;">
+            ${data.daily.temperature_2m_min[i]}°
+          </div>
+        </div>
+      </div>`;
+    }
+    document.getElementById('forecast').innerHTML = forecastHTML;
+
+    // Tide (2 cycles)
     const labels = Array.from({length:24}, (_,i)=>i+':00');
     const values = labels.map((_,i)=>Math.sin(i/12*2*Math.PI)*2+3);
     new Chart(document.getElementById('tideChart'), {
