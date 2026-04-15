@@ -106,7 +106,17 @@ document.getElementById('waveArrow').style.transform = `rotate(${waveDir}deg)`;
 
 document.getElementById('temp').innerText = temp + '°C';
 document.getElementById('wind').innerText = windKnots.toFixed(1);
-document.getElementById('weather').innerText = 'Live';
+documconst weatherMap = {
+  0:"☀️ Clear",
+  1:"🌤 Partly",
+  2:"⛅ Cloudy",
+  3:"☁️ Overcast",
+  61:"🌧 Rain",
+  80:"🌦 Showers"
+};
+
+document.getElementById('weather').innerText =
+  weatherMap[data.current.weathercode] || "☁️";
 document.getElementById('waves').innerText = '-';
 
 let status = document.getElementById('status');
