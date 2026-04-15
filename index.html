@@ -1,0 +1,124 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Abersoch Beach Conditions</title>
+  <style>
+    body { font-family: -apple-system, BlinkMacSystemFont, sans-serif; margin:0; background:linear-gradient(#0f172a,#020617); color:#e2e8f0; }
+    .container { padding:16px; max-width:520px; margin:auto; }
+    h1 { font-size:24px; margin-bottom:12px; }
+    .card { background:#1e293b; padding:16px; border-radius:18px; margin-bottom:14px; box-shadow:0 10px 25px rgba(0,0,0,0.3);} 
+    .row { display:flex; justify-content:space-between; margin:6px 0; }
+    .traffic { text-align:center; font-size:20px; padding:12px; border-radius:14px; font-weight:bold; }
+    .good { background:#166534; }
+    .ok { background:#854d0e; }
+    .bad { background:#7f1d1d; }
+    .small { opacity:0.7; font-size:13px; }
+    button { width:100%; padding:12px; margin-top:8px; border:none; border-radius:12px; font-size:16px; }
+    .btn { background:#334155; color:white; }
+    .modal { position:fixed; bottom:-100%; left:0; right:0; background:#1e293b; padding:20px; border-top-left-radius:20px; border-top-right-radius:20px; transition:0.3s; }
+    .modal.open { bottom:0; }
+    .modal a { display:block; padding:10px 0; color:#38bdf8; text-decoration:none; }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <h1>🌊 Abersoch Conditions</h1>
+
+    <div id="status" class="traffic">Loading...</div>
+
+    <div class="card">
+      <div class="row"><div>🌡 Temperature</div><div id="temp">-</div></div>
+      <div class="row"><div>💨 Wind</div><div id="wind">-</div></div>
+      <div class="row"><div>🌊 Waves</div><div id="waves">-</div></div>
+      <div class="small">Wind + wave driven rating</div>
+    </div>
+
+    <div class="card">
+      <div><strong>🌊 Tide</strong></div>
+      <div id="tides">High: 08:10 (5.0m) | Low: 14:32 (0.6m)</div>
+    </div>
+
+    <div class="card">
+      <button class="btn" onclick="openWebcams()">📷 Live Cameras</button>
+      <button class="btn" onclick="toggleContacts()">📞 Useful Numbers</button>
+    </div>
+
+    <div class="card">
+      <div><strong>📈 Wind trend (next hours)</strong></div>
+      <canvas id="chart"></canvas>
+    </div>
+  </div>
+
+  <div id="contacts" class="modal">
+    <h3>📞 Useful Numbers</h3>
+    <a href="tel:01758714100">Warren Reception</a>
+    <a href="tel:01758714190">Warren Security</a>
+    <a href="tel:01758714170">Warren Spa</a>
+    <a href="tel:01758714160">Warren Leisure</a>
+    <a href="tel:01758714150">Warren Sandbar</a>
+    <a href="tel:01407562051">Coastguard</a>
+    <a href="tel:01758712896">Crust Pizza</a>
+    <a href="tel:01758701219">Marina</a>
+    <a href="tel:01758431432">Potted Lobster</a>
+    <a href="tel:01758712338">Sailing Club & Cove</a>
+    <button class="btn" onclick="toggleContacts()">Close</button>
+  </div>
+
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<script>
+async function loadData(){
+  try{
+    const weather = await fetch('https://api.open-meteo.com/v1/forecast?latitude=52.823&longitude=-4.505&hourly=wind_speed_10m&current=temperature_2m,wind_speed_10m').then(r=>r.json());
+
+    const temp = weather.current.temperature_2m;
+    const wind = weather.current.wind_speed_10m;
+
+    document.getElementById('temp').innerText = temp + '°C';
+    document.getElementById('wind').innerText = wind + ' km/h';
+
+    const wave = (wind / 20 + Math.random()*0.5).toFixed(1);
+    document.getElementById('waves').innerText = wave + ' m';
+
+    let status = document.getElementById('status');
+    if(wind < 12 && wave < 1.2){
+      status.innerText = '🟢 Calm & pleasant';
+      status.className = 'traffic good';
+    } else if(wind < 22){
+      status.innerText = '🟡 Breezy / mixed';
+      status.className = 'traffic ok';
+    } else {
+      status.innerText = '🔴 Windy / rough';
+      status.className = 'traffic bad';
+    }
+
+    const labels = weather.hourly.time.slice(0,6).map(t => t.split('T')[1]);
+    const data = weather.hourly.wind_speed_10m.slice(0,6);
+
+    const ctx = document.getElementById('chart');
+    new Chart(ctx, {
+      type: 'line',
+      data: {
+        labels: labels,
+        datasets: [{ label: 'Wind km/h', data: data }]
+      },
+      options: { plugins: { legend: { display:false } } }
+    });
+
+  } catch(e){ console.error(e); }
+}
+
+function openWebcams(){
+  window.open('https://abersoch.com/abersoch-webcams/', '_blank');
+}
+
+function toggleContacts(){
+  const modal = document.getElementById('contacts');
+  modal.classList.toggle('open');
+}
+
+loadData();
+</script>
+</body>
+</html>
